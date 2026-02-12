@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dragonfly.sys TMA</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --neon-green: #00ffaa;
+            --deep-purple: #7b2cbf;
+            --panel-bg: rgba(0, 10, 5, 0.85);
+        }
+
+        body {
+            background-color: #030806;
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)), url('bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 0; padding: 15px;
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+            overflow: hidden; /* Mencegah scroll berlebih agar partikel stabil */
+        }
+
+        /* Canvas Partikel di Belakang UI */
+        #particle-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none; /* Agar tidak menghalangi klik tombol */
+        }
+
+        /* Konten utama harus di atas canvas */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 90vh;
+        }
+
+        .top-nav {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            font-size: 10px; letter-spacing: 1px; margin-bottom: 20px;
+        }
+
+        .main-panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(0, 255, 170, 0.2);
+            border-radius: 20px; width: 100%; padding: 25px;
+            box-sizing: border-box; text-align: center;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 0 40px rgba(0, 255, 170, 0.1);
+        }
+
+        .extraction-box {
+            border: 1.5px solid var(--deep-purple);
+            border-radius: 15px; margin: 15px 0; padding: 25px;
+            background: radial-gradient(circle, rgba(123, 44, 191, 0.15), transparent);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dragonfly-capsule {
+            width: 160px; 
+            filter: drop-shadow(0 0 25px var(--neon-green));
+            animation: float 4s infinite ease-in-out;
+        }
+
+        @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(1deg); } }
+
+        .btn-neon {
+            background: var(--neon-green); color: black; border: none;
+            width: 100%; padding: 16px; border-radius: 14px;
+            font-weight: 900; font-size: 13px; letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(0, 255, 170, 0.4);
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+
+        .btn-neon:active { transform: scale(0.96); box-shadow: 0 0 10px var(--neon-green); }
+
+        .boosters {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            width: 100%; margin-top: 20px;
+        }
+        .booster-card {
+            background: rgba(0, 255, 170, 0.05);
+            border: 1px solid rgba(0, 255, 170, 0.2);
+            border-radius: 15px; padding: 15px; font-size: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .footer-tabs {
+            margin-top: auto; padding-bottom: 20px;
+            display: flex; gap: 15px; font-size: 10px; opacity: 0.6;
+            text-transform: uppercase; font-weight: bold;
+        }
+        .active-tab { color: var(--neon-green); border-bottom: 2px solid var(--neon-green); opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <canvas id="particle-canvas"></canvas>
+
+    <div class="app-container">
+        <div class="top-nav">
+            <div>LVL 2 <span style="color:var(--neon-green)">●</span> 87% TO EVOLUTION</div>
+            <div style="background:rgba(0, 255, 170, 0.1); padding:5px 12px; border-radius:20px; border: 1px solid var(--neon-green); color: var(--neon-green);">3.740 XP</div>
+        </div>
+
+        <div class="main-panel">
+            <div style="font-size: 10px; letter-spacing: 5px; color: var(--neon-green); font-weight: bold; opacity: 0.8;">ENERGY EXTRACTION</div>
+            
+            <div class="extraction-box">
+                <img src="https://r.jina.ai/i/6f9052d585484545934526d11e51b6e4" class="dragonfly-capsule">
+                <div style="margin-top: 15px;">
+                    <div style="font-size: 11px; opacity: 0.6; letter-spacing: 1px;">CLAIMABLE REWARD</div>
+                    <h1 style="margin: 5px 0; color: var(--neon-green); font-size: 32px; text-shadow: 0 0 15px rgba(0,255,170,0.5);">875 XP</h1>
+                </div>
+            </div>
+
+            <button class="btn-neon" onclick="claimReward()">Claim Reward</button>
+        </div>
+
+        <div class="boosters">
+            <div class="booster-card">
+                <div style="color:var(--neon-green); font-weight: bold; margin-bottom: 8px;">WATCH VIDEO</div>
+                <div style="opacity: 0.5; margin-bottom: 10px;">Get +50 XP boost</div>
+                <button style="background:var(--neon-green); border:none; width:100%; border-radius:8px; padding:6px; font-weight:bold; font-size:10px;">ENGAGE</button>
+            </div>
+            <div class="booster-card">
+                <div style="color:var(--neon-green); font-weight: bold; margin-bottom: 8px;">SHARE 2X</div>
+                <div style="opacity: 0.5; margin-bottom: 10px;">Invite your allies</div>
+                <button style="background:var(--neon-green); border:none; width:100%; border-radius:8px; padding:6px; font-weight:bold; font-size:10px;">JOIN</button>
+            </div>
+        </div>
+
+        <div class="footer-tabs">
+            <span>Common</span>
+            <span>Rare</span>
+            <span class="active-tab">Evolve</span>
+            <span>Epic</span>
+            <span>Legendary</span>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        function claimReward() {
+            tg.HapticFeedback.notificationOccurred('success');
+            tg.showAlert("XP claimed successfully!");
+        }
+
+        // --- SISTEM PARTIKEL ---
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedX = Math.random() * 0.5 - 0.25;
+                this.speedY = Math.random() * 0.5 - 0.25;
+                this.opacity = Math.random() * 0.5 + 0.1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x > canvas.width) this.x = 0;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.y > canvas.height) this.y = 0;
+                if (this.y < 0) this.y = canvas.height;
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(0, 255, 170, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function createParticles() {
+            for (let i = 0; i < 50; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+        createParticles();
+        animate();
+    </script>
+</body>
+</html>
