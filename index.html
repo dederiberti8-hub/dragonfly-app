@@ -1,4 +1,261 @@
-function switchTab(t) {
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dragonfly.sys TMA</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --neon-green: #00ffaa; --panel-bg: rgba(0, 10, 5, 0.95); }
+        body { background: #030806; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; height: 100vh; overflow: hidden; }
+        .app-container { position: relative; z-index: 1; width: 100%; max-width: 400px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
+        .gear-icon { position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer; z-index: 101; }
+        .top-nav { margin-top: 40px; margin-bottom: 10px; text-align: center; }
+        .user-avatar { width: 65px; height: 65px; border-radius: 50%; border: 2px solid var(--neon-green); margin: 0 auto 15px; display: block; object-fit: cover; box-shadow: 0 0 15px rgba(0, 255, 170, 0.3); }
+        .content-scroll { flex-grow: 1; overflow-y: auto; padding-bottom: 120px; scrollbar-width: none; }
+        .content-scroll::-webkit-scrollbar { display: none; }
+        .progress-container { width: 100%; background: rgba(255, 255, 255, 0.1); height: 8px; border-radius: 10px; margin: 8px 0; overflow: hidden; }
+        #progress-fill { height: 100%; width: 0%; transition: width 0.5s ease; background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+        .main-panel { background: var(--panel-bg); border: 1px solid rgba(0, 255, 170, 0.2); border-radius: 30px; padding: 20px; text-align: center; }
+        #dragonfly-img { width: 150px; height: 180px; object-fit: contain; animation: float 4s infinite ease-in-out; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        .mission-header { background: rgba(0, 255, 170, 0.1); color: var(--neon-green); text-align: center; padding: 15px; font-weight: 900; border: 1px dashed var(--neon-green); border-radius: 15px; cursor: pointer; margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
+        #mission-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding-bottom: 20px; }
+        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-neon { background: var(--neon-green); color: black; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+        .btn-done { background: #1a1a1a !important; color: #444 !important; cursor: default; }
+        .footer-tabs { position: fixed; bottom: 15px; left: 15px; right: 15px; background: #000; display: flex; justify-content: space-around; padding: 12px 0; border: 1px solid #1a1a1a; z-index: 1000; border-radius: 20px; }
+        .tab-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; cursor: pointer; }
+        .tab-icon { font-size: 22px; filter: grayscale(100%) sepia(100%) saturate(1000%) hue-rotate(100deg); opacity: 0.4; }
+        .tab-text { font-size: 9px; color: #555; font-weight: 800; text-transform: uppercase; }
+        .tab-item.active .tab-icon { opacity: 1; filter: sepia(100%) saturate(1000%) hue-rotate(100deg) drop-shadow(0 0 5px var(--neon-green)); }
+        .tab-item.active .tab-text { color: var(--neon-green); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--panel-bg); padding: 30px; border-radius: 25px; border: 1px solid var(--neon-green); text-align: center; width: 85%; }
+    </style>
+</head>
+<body>
+    <audio id="bg-music" loop src="your-music-file.mp3"></audio>
+
+    <div class="app-container">
+        <div class="gear-icon" onclick="toggleSettings()">⚙️</div>
+        
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <h3 style="color:var(--neon-green)">SETTINGS</h3>
+                <div style="margin-bottom: 20px;">
+                    <p style="font-size: 12px;">LANGUAGE</p>
+                    <button class="btn-neon" onclick="changeLang('en')">EN</button> 
+                    <button class="btn-neon" onclick="changeLang('id')">ID</button>
+                </div>
+                <div style="margin-bottom: 25px;">
+                    <p style="font-size: 12px;">AUDIO</p>
+                    <button id="music-btn" class="btn-neon" onclick="toggleMusic()">MUSIC: OFF</button>
+                </div>
+                <button class="btn-neon" onclick="toggleSettings()" style="background:#ff4d4d; color:white;">CLOSE</button>
+            </div>
+        </div>
+
+        <div class="content-scroll">
+            <div id="home-page" class="page-content">
+                <div class="top-nav">
+                    <img id="user-photo" src="" class="user-avatar">
+                    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--neon-green); font-weight:bold;">
+                        <span id="rank-name">SABINA</span>
+                        <span id="progress-percent">0/5k XP</span>
+                    </div>
+                    <div class="progress-container"><div id="progress-fill"></div></div>
+                    <div id="total-balance" style="text-align:right; font-weight:bold; color:var(--neon-green); font-size:20px;">0 XP</div>
+                </div>
+                <div class="main-panel">
+                    <img src="sabina.jpg" id="dragonfly-img">
+                    <div id="xp-display" style="font-size:36px; font-weight:bold; margin:10px 0;">0 XP</div>
+                    <button class="btn-neon" id="main-btn" onclick="handleAction()" style="width:100%">START QUEST</button>
+                </div>
+                <div class="mission-header" onclick="toggleMissionList()">
+                    <span id="mission-title">MISSION PROTOCOL</span> <span id="mission-arrow">▼</span>
+                </div>
+                <div id="mission-list"></div>
+            </div>
+
+            <div id="leaderboard-page" class="page-content" style="display:none;">
+                <h2 id="leaderboard-title" style="color:var(--neon-green); text-align:center; margin-top:20px;">TOP 10 KNIGHTS</h2>
+                <div id="leaderboard-list" style="padding:10px;"></div>
+            </div>
+            <div id="frens-page" class="page-content" style="display:none;">
+                <h2 id="frens-title" style="color:var(--neon-green); text-align:center; margin-top:20px;">RECRUIT</h2>
+                <div class="card" style="flex-direction:column; padding:30px; gap:20px; text-align:center;">
+                    <p id="recruit-text">Invite friends and earn +2,500 XP!</p>
+                    <button class="btn-neon" style="width:100%">INVITE FRIENDS</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-tabs">
+            <div class="tab-item active" id="tab-home" onclick="switchTab('home')"><span class="tab-icon">🏠</span><span class="tab-text" id="lang-base">BASE</span></div>
+            <div class="tab-item" id="tab-leaderboard" onclick="switchTab('leaderboard')"><span class="tab-icon">🏆</span><span class="tab-text" id="lang-ranks">RANKS</span></div>
+            <div class="tab-item" id="tab-frens" onclick="switchTab('frens')"><span class="tab-icon">👤</span><span class="tab-text" id="lang-frens">RECRUIT</span></div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const firebaseConfig = { apiKey: "AIzaSyBxcn021zW-kOb2gEY9MURofJPy3xMwEvs", authDomain: "dragonflybot-36679.firebaseapp.com", databaseURL: "https://dragonflybot-36679-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "dragonflybot-36679", storageBucket: "dragonflybot-36679.firebasestorage.app", messagingSenderId: "662393951428", appId: "1:662393951428:web:838c2e52c722658e09e591" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const userId = tg.initDataUnsafe.user?.id || "dev_user";
+        const userName = tg.initDataUnsafe.user?.first_name || "Knight";
+        const userPhoto = tg.initDataUnsafe.user?.photo_url || `https://ui-avatars.com/api/?name=${userName}&background=030806&color=00ffaa`;
+        
+        let totalBalance = 0, isUnlocked = false, miningXp = 0, taskDone = {}, lastDaily = "", currentLang = 'en', isMusicOn = false;
+
+        const RANKS = [
+            { name: "Sabina", min: 0, max: 5000 },
+            { name: "Sentry", min: 5001, max: 20000 },
+            { name: "Knight", min: 20001, max: 100000 },
+            { name: "Commander", min: 100001, max: 500000 },
+            { name: "Dragon Lord", min: 500001, max: Infinity }
+        ];
+
+        const i18n = {
+            en: { quest: "START QUEST", collect: "COLLECT", done: "DONE", confirm: "Task completed?", protocol: "MISSION PROTOCOL", top: "TOP 10 KNIGHTS", base: "BASE", ranks: "RANKS", frens: "RECRUIT" },
+            id: { quest: "MULAI QUEST", collect: "AMBIL XP", done: "SELESAI", confirm: "Misi selesai?", protocol: "PROTOKOL MISI", top: "10 KESATRIA TERATAS", base: "MARKAS", ranks: "PERINGKAT", frens: "REKRUT" }
+        };
+
+        const permanentMissions = [{ id: 'ch', name: 'Join Channel', url: 'https://t.me/DGF_KnightsChannel', xp: 1000 }];
+        const dailyMissions = [
+            { id: 'tw', name: 'Visit Our X', url: 'https://x.com/youraccount', xp: 800 },
+            { id: 'yt', name: 'Watch YouTube', url: 'https://youtube.com/@channel', xp: 1000 }
+        ];
+
+        // 1. Definisikan Render Misi Dulu
+        function renderMissions() {
+            const list = document.getElementById('mission-list');
+            if (!list) return;
+            const today = new Date().toDateString();
+            const lang = i18n[currentLang];
+            
+            let html = `<div class="card"><div><b>Daily Reward</b><br><small>+500 XP</small></div><button class="btn-neon ${lastDaily === today ? 'btn-done' : ''}" onclick="doDaily()" ${lastDaily === today ? 'disabled' : ''}>${lastDaily === today ? lang.done : 'CLAIM'}</button></div>`;
+            
+            [...dailyMissions, ...permanentMissions].forEach(m => {
+                const done = taskDone[m.id];
+                html += `<div class="card"><div><b>${m.name}</b><br><small>+${m.xp} XP</small></div><button class="btn-neon ${done ? 'btn-done' : ''}" onclick="doMission('${m.id}','${m.url}',${m.xp})" ${done ? 'disabled' : ''}>${done ? lang.done : 'GO'}</button></div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        // 2. Definisikan Update UI
+        function updateUI() {
+            const lang = i18n[currentLang];
+            const currentRank = RANKS.find(r => totalBalance >= r.min && totalBalance <= r.max) || RANKS[0];
+            
+            document.getElementById('total-balance').innerText = Math.floor(totalBalance).toLocaleString() + " XP";
+            document.getElementById('rank-name').innerText = currentRank.name.toUpperCase();
+            
+            const progress = ((totalBalance - currentRank.min) / (currentRank.max - currentRank.min)) * 100;
+            document.getElementById('progress-fill').style.width = Math.min(progress, 100) + "%";
+            document.getElementById('progress-percent').innerText = `${Math.floor(totalBalance).toLocaleString()} / ${currentRank.max === Infinity ? 'MAX' : currentRank.max.toLocaleString()} XP`;
+
+            document.getElementById('main-btn').innerText = isUnlocked ? lang.collect : lang.quest;
+            document.getElementById('mission-title').innerText = lang.protocol;
+            document.getElementById('lang-base').innerText = lang.base;
+            document.getElementById('lang-ranks').innerText = lang.ranks;
+            document.getElementById('lang-frens').innerText = lang.frens;
+            document.getElementById('leaderboard-title').innerText = lang.top;
+        }
+
+        // 3. Fungsi Load Data yang Memanggil UI secara urut
+        function loadData() {
+            document.getElementById('user-photo').src = userPhoto;
+            const today = new Date().toDateString();
+
+            db.ref('users/' + userId).once('value', (snap) => {
+                const val = snap.val() || {};
+                totalBalance = val.xp || 0;
+                isUnlocked = val.unlocked || false;
+                lastDaily = val.last_daily || "";
+                let savedTasks = val.tasks || {};
+
+                if (val.last_reset !== today) {
+                    let updatedTasks = {};
+                    permanentMissions.forEach(m => { 
+                        if (savedTasks[m.id]) updatedTasks[m.id] = true; 
+                    });
+                    taskDone = updatedTasks;
+                    db.ref('users/' + userId).update({ 
+                        tasks: updatedTasks, 
+                        last_reset: today, 
+                        name: userName, 
+                        photo: userPhoto 
+                    });
+                } else {
+                    taskDone = savedTasks;
+                }
+
+                // EKSEKUSI UI SETELAH DATA BERES
+                updateUI();
+                renderMissions(); 
+                if(isUnlocked) startMining();
+            });
+        }
+
+        // 4. Helper Functions
+        function saveToFirebase() {
+            db.ref('users/' + userId).update({ xp: totalBalance, unlocked: isUnlocked, tasks: taskDone, last_daily: lastDaily, name: userName, photo: userPhoto });
+        }
+
+        function doDaily() {
+            const today = new Date().toDateString();
+            if(lastDaily === today) return;
+            lastDaily = today; totalBalance += 500;
+            saveToFirebase(); updateUI(); renderMissions();
+        }
+
+        function doMission(id, url, xp) {
+            window.open(url);
+            setTimeout(() => {
+                tg.showConfirm(i18n[currentLang].confirm, (ok) => {
+                    if(ok) {
+                        taskDone[id] = true; totalBalance += xp;
+                        if(id === 'ch') isUnlocked = true;
+                        saveToFirebase(); updateUI(); renderMissions(); 
+                        if(isUnlocked) startMining();
+                    }
+                });
+            }, 2000);
+        }
+
+        function toggleMusic() {
+            const audio = document.getElementById('bg-music');
+            const btn = document.getElementById('music-btn');
+            isMusicOn = !isMusicOn;
+            if(isMusicOn) {
+                audio.play().catch(() => tg.showAlert("Gagal memutar. Klik layar dulu."));
+                btn.innerText = "MUSIC: ON";
+            } else {
+                audio.pause();
+                btn.innerText = "MUSIC: OFF";
+            }
+        }
+
+        function startMining() {
+            if(window.miningInterval) return;
+            window.miningInterval = setInterval(() => { miningXp += (2/60); document.getElementById('xp-display').innerText = Math.floor(miningXp) + " XP"; }, 1000);
+        }
+
+        function handleAction() {
+            if(!isUnlocked) return tg.showAlert("Selesaikan misi 'Join Channel' dulu!");
+            if(miningXp < 1) return;
+            totalBalance += miningXp; miningXp = 0;
+            saveToFirebase(); updateUI();
+        }
+
+        function switchTab(t) {
             document.querySelectorAll('.page-content').forEach(p => p.style.display = 'none');
             document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
             document.getElementById(t + '-page').style.display = 'block';
@@ -13,7 +270,7 @@ function switchTab(t) {
                 players.reverse();
                 document.getElementById('leaderboard-list').innerHTML = players.map((u, i) => {
                     const r = RANKS.find(rank => u.xp >= rank.min && u.xp <= rank.max) || RANKS[0];
-                    return <div class="card" style="margin-bottom:10px;"><div style="display:flex;align-items:center;width:100%"><span style="font-weight:bold;color:var(--neon-green);width:20px;">${i+1}</span><img src="${u.photo || ''}" style="width:35px;height:35px;border-radius:50%;border:1px solid var(--neon-green);margin-left:10px"><div style="display:flex;justify-content:space-between;flex-grow:1;align-items:center;margin-left:10px"><div><div style="font-size:12px;font-weight:bold">${u.name}</div><div style="font-size:9px;color:var(--neon-green)">${r.name}</div></div><b style="color:var(--neon-green)">${Math.floor(u.xp).toLocaleString()}</b></div></div></div>;
+                    return `<div class="card" style="margin-bottom:10px;"><div style="display:flex;align-items:center;width:100%"><span style="font-weight:bold;color:var(--neon-green);width:20px;">${i+1}</span><img src="${u.photo || ''}" style="width:35px;height:35px;border-radius:50%;border:1px solid var(--neon-green);margin-left:10px"><div style="display:flex;justify-content:space-between;flex-grow:1;align-items:center;margin-left:10px"><div><div style="font-size:12px;font-weight:bold">${u.name}</div><div style="font-size:9px;color:var(--neon-green)">${r.name}</div></div><b style="color:var(--neon-green)">${Math.floor(u.xp).toLocaleString()}</b></div></div></div>`;
                 }).join('');
             });
         }
