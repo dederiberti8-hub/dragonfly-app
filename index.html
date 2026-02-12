@@ -1,241 +1,40 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragonfly.sys TMA</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --neon-green: #00ffaa;
-            --deep-purple: #7b2cbf;
-            --panel-bg: rgba(0, 10, 5, 0.85);
+function switchTab(t) {
+            document.querySelectorAll('.page-content').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(t + '-page').style.display = 'block';
+            document.getElementById('tab-' + t).classList.add('active');
+            if(t === 'leaderboard') renderLeaderboard();
         }
 
-        body {
-            background-color: #030806;
-            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)), url('bg.jpg');
-            background-size: cover; background-position: center; background-attachment: fixed;
-            color: white; font-family: 'Segoe UI', Tahoma, sans-serif;
-            margin: 0; padding: 15px; min-height: 100vh;
-            display: flex; flex-direction: column; align-items: center; overflow: hidden;
-        }
-
-        #particle-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-
-        .app-container { position: relative; z-index: 1; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; height: 95vh; }
-
-        .top-nav { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; }
-        .progress-container { width: 100%; background: rgba(255, 255, 255, 0.1); height: 6px; border-radius: 10px; margin: 6px 0; overflow: hidden; border: 1px solid rgba(0, 255, 170, 0.2); }
-        #progress-fill { height: 100%; width: 0%; background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); transition: width 0.5s ease; }
-        .level-info { display: flex; justify-content: space-between; font-size: 8px; color: var(--neon-green); letter-spacing: 1px; font-weight: bold; }
-
-        .main-panel { background: var(--panel-bg); border: 1px solid rgba(0, 255, 170, 0.2); border-radius: 20px; width: 100%; padding: 25px; box-sizing: border-box; text-align: center; backdrop-filter: blur(12px); }
-        .extraction-box { border: 1.5px solid var(--deep-purple); border-radius: 15px; margin: 15px 0; padding: 25px; background: radial-gradient(circle, rgba(123, 44, 191, 0.15), transparent); }
-        .dragonfly-capsule { width: 150px; filter: drop-shadow(0 0 25px var(--neon-green)); animation: float 4s infinite ease-in-out; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-
-        .btn-neon { background: var(--neon-green); color: black; border: none; width: 100%; padding: 15px; border-radius: 14px; font-weight: 900; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; }
-        
-        .booster-card { background: rgba(0, 255, 170, 0.05); border: 1px solid rgba(0, 255, 170, 0.2); border-radius: 15px; padding: 12px; font-size: 10px; text-align: center; margin-top: 10px; width: 100%; box-sizing: border-box;}
-
-        .footer-tabs { margin-top: auto; padding-bottom: 10px; display: flex; gap: 12px; font-size: 9px; opacity: 0.5; font-weight: bold; }
-        .active-tab { opacity: 1; border-bottom: 2px solid var(--neon-green); padding-bottom: 2px; }
-        .locked-char { filter: brightness(0) invert(0) !important; opacity: 0.3; }
-    </style>
-</head>
-<body>
-
-    <canvas id="particle-canvas"></canvas>
-
-    <div class="app-container">
-        <div class="top-nav">
-            <div style="flex-grow: 1;">
-                <div class="level-info">
-                    <span id="rank-name">LEVEL: COMMON</span>
-                    <span id="progress-percent">0% TO EVOLUTION</span>
-                </div>
-                <div class="progress-container">
-                    <div id="progress-fill"></div>
-                </div>
-            </div>
-            <div id="total-balance" style="background:rgba(0, 255, 170, 0.1); padding:8px 12px; border-radius:15px; border: 1px solid var(--neon-green); color: var(--neon-green); font-weight: bold; font-size: 12px; min-width: 60px; text-align: center;">0 XP</div>
-        </div>
-
-        <div class="main-panel">
-            <div style="font-size: 10px; letter-spacing: 4px; color: var(--neon-green); font-weight: bold; opacity: 0.8;">ENERGY EXTRACTION</div>
-            
-            <div class="extraction-box">
-                <img src="https://r.jina.ai/i/6f9052d585484545934526d11e51b6e4" class="dragonfly-capsule" id="dragonfly-img">
-                <div style="margin-top: 15px;">
-                    <div style="font-size: 10px; opacity: 0.6; letter-spacing: 1px;">CLAIMABLE REWARD</div>
-                    <h1 style="margin: 5px 0; color: var(--neon-green); font-size: 32px; text-shadow: 0 0 15px rgba(0,255,170,0.5);"><span id="xp-val">0</span> XP</h1>
-                </div>
-            </div>
-
-            <button class="btn-neon" id="main-btn" onclick="handleAction()">Start Quest</button>
-        </div>
-
-        <div id="mission-panel" style="width: 100%; margin-top: 15px;">
-            <div style="font-size: 10px; color: var(--neon-green); margin-bottom: 8px; letter-spacing: 2px; font-weight: bold;">AVAILABLE TASKS</div>
-            
-            <div class="booster-card" style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="text-align: left;">
-                    <div style="font-weight: bold; font-size: 11px;">JOIN COMMUNITY</div>
-                    <div style="font-size: 8px; opacity: 0.6;">Unlock Mining Protocol</div>
-                </div>
-                <button onclick="doMission('tg', 'https://t.me/GANTI_DENGAN_LINK_KAMU')" id="btn-tg" style="background:var(--neon-green); border:none; border-radius:5px; padding:6px 12px; font-weight:bold; font-size:9px;">GO</button>
-            </div>
-        </div>
-
-        <div class="footer-tabs">
-            <span id="tab-common">COMMON</span>
-            <span id="tab-rare">RARE</span>
-            <span id="tab-epic">EPIC</span>
-            <span id="tab-legendary">LEGENDARY</span>
-        </div>
-    </div>
-
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand(); tg.ready();
-
-        // --- MASUKKAN DATA KAMU DI SINI ---
-        const CHANNEL_ID = '@DGF_KnightsChannel'; 
-        const GROUP_ID = '@DGF_KnightsGroup'
-        const BOT_TOKEN = '8418623077:AAHSdiBzsIJkQa2Aaj1BHAum5rtZfRU5JRY'; 
-
-        let miningXp = 0; 
-        let totalBalance = parseInt(localStorage.getItem('df_balance')) || 0;
-        let isUnlocked = localStorage.getItem('df_unlocked') === 'true';
-
-        const knightRanks = [
-            { name: "COMMON", min: 0, max: 1000, color: "#00ffaa", tab: "tab-common" },
-            { name: "RARE", min: 1000, max: 5000, color: "#3a86ff", tab: "tab-rare" },
-            { name: "EPIC", min: 5000, max: 20000, color: "#bc6cff", tab: "tab-epic" },
-            { name: "LEGENDARY", min: 20000, max: 1000000, color: "#ffbe0b", tab: "tab-legendary" }
-        ];
-
-        window.onload = () => {
-            updateUI();
-            if(isUnlocked) {
-                startMiningProcess();
-                document.getElementById('mission-panel').style.display = 'none';
-            } else {
-                document.getElementById('dragonfly-img').classList.add('locked-char');
-                document.getElementById('main-btn').innerText = "LOCKER SEALED";
-                document.getElementById('main-btn').style.opacity = "0.5";
-            }
-        };
-
-        async function doMission(type, url) {
-            tg.HapticFeedback.impactOccurred('medium');
-            window.open(url);
-            
-            tg.showConfirm("Verifikasi otomatis: Apakah kamu sudah bergabung di channel?", async (ok) => {
-                if (ok) {
-                    tg.showProgress();
-                    const joined = await verifyTelegramJoin();
-                    tg.hideProgress();
-
-                    if (joined) {
-                        unlockDragonfly();
-                    } else {
-                        tg.showAlert("Gagal: Kamu belum bergabung ke channel kami!");
-                    }
-                }
+        function renderLeaderboard() {
+            db.ref('users').orderByChild('xp').limitToLast(10).once('value', (snap) => {
+                let players = [];
+                snap.forEach(c => players.push(c.val()));
+                players.reverse();
+                document.getElementById('leaderboard-list').innerHTML = players.map((u, i) => {
+                    const r = RANKS.find(rank => u.xp >= rank.min && u.xp <= rank.max) || RANKS[0];
+                    return <div class="card" style="margin-bottom:10px;"><div style="display:flex;align-items:center;width:100%"><span style="font-weight:bold;color:var(--neon-green);width:20px;">${i+1}</span><img src="${u.photo || ''}" style="width:35px;height:35px;border-radius:50%;border:1px solid var(--neon-green);margin-left:10px"><div style="display:flex;justify-content:space-between;flex-grow:1;align-items:center;margin-left:10px"><div><div style="font-size:12px;font-weight:bold">${u.name}</div><div style="font-size:9px;color:var(--neon-green)">${r.name}</div></div><b style="color:var(--neon-green)">${Math.floor(u.xp).toLocaleString()}</b></div></div></div>;
+                }).join('');
             });
         }
 
-        async function verifyTelegramJoin() {
-            const userId = tg.initDataUnsafe.user.id;
-            const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
-
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                if (data.ok) {
-                    const s = data.result.status;
-                    return ['member', 'administrator', 'creator'].includes(s);
-                }
-                return false;
-            } catch (e) { return false; }
+        function toggleMissionList() {
+            const list = document.getElementById('mission-list');
+            const arrow = document.getElementById('mission-arrow');
+            list.style.display = list.style.display === "none" ? "flex" : "none";
+            arrow.innerText = list.style.display === "none" ? "▼" : "▲";
         }
 
-        function unlockDragonfly() {
-            isUnlocked = true;
-            localStorage.setItem('df_unlocked', 'true');
-            document.getElementById('dragonfly-img').classList.remove('locked-char');
-            document.getElementById('mission-panel').style.display = 'none';
-            tg.showAlert("Verifikasi Sukses! Dragonfly Unlocked.");
-            startMiningProcess();
+        function toggleSettings() { 
+            const m = document.getElementById('settings-modal'); 
+            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex'; 
         }
 
-        function startMiningProcess() {
-            document.getElementById('main-btn').innerText = "Claim Reward";
-            document.getElementById('main-btn').style.background = "#ffffff";
-            document.getElementById('main-btn').style.opacity = "1";
-            setInterval(() => {
-                miningXp += (1.2 / 60); 
-                document.getElementById('xp-val').innerText = Math.floor(miningXp);
-            }, 1000);
-        }
+        function changeLang(l) { currentLang = l; updateUI(); renderMissions(); toggleSettings(); }
 
-        function handleAction() {
-            if (!isUnlocked) {
-                tg.showAlert("Complete the task below to unlock mining!");
-            } else {
-                claimReward();
-            }
-        }
-
-        function claimReward() {
-            const amount = Math.floor(miningXp);
-            if (amount < 1) return tg.showAlert("Mining more XP first!");
-            
-            tg.HapticFeedback.notificationOccurred('success');
-            totalBalance += amount;
-            localStorage.setItem('df_balance', totalBalance);
-            miningXp = 0;
-            document.getElementById('xp-val').innerText = "0";
-            updateUI();
-        }
-
-        function updateUI() {
-            const currentRank = knightRanks.find(r => totalBalance >= r.min && totalBalance < r.max) || knightRanks[3];
-            document.getElementById('total-balance').innerText = totalBalance.toLocaleString();
-            document.getElementById('rank-name').innerText = `LEVEL: ${currentRank.name}`;
-            
-            const range = currentRank.max - currentRank.min;
-            const progress = totalBalance - currentRank.min;
-            const percent = Math.min((progress / range) * 100, 100);
-            document.getElementById('progress-fill').style.width = percent + "%";
-            document.getElementById('progress-fill').style.background = currentRank.color;
-            
-            if(isUnlocked) {
-                document.getElementById('dragonfly-img').style.filter = `drop-shadow(0 0 25px ${currentRank.color})`;
-            }
-        }
-
-        // --- Particles ---
-        const canvas = document.getElementById('particle-canvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        function initCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        class Particle {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 2;
-                this.vx = Math.random() * 0.2 - 0.1;
-                this.vy = Math.random() * 0.2 - 0.1;
-            }
-            update() { this.x += this.vx; this.y += this.vy; if(this.x<0)this.x=canvas.width; if(this.y<0)this.y=canvas.height; }
-            draw() { ctx.fillStyle = "rgba(0, 255, 170, 0.2)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
-        }
-        for(let i=0; i<30; i++) particles.push(new Particle());
-        function animate() { ctx.clearRect(0,0,canvas.width,canvas.height); particles.forEach(p=>{p.update(); p.draw();}); requestAnimationFrame(animate); }
-        initCanvas(); animate();
+        // Jalankan load data saat window siap
+        window.onload = loadData;
+        
     </script>
 </body>
 </html>
