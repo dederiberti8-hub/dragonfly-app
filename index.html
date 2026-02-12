@@ -1,24 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dragonfly.sys</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-database-compat.js"></script>
+
+<style>
+body { background:#030806; color:white; font-family:sans-serif; margin:0; padding:20px; }
+.btn { background:#00ffaa; border:none; padding:10px; width:100%; margin-top:10px; font-weight:bold; border-radius:6px; }
+.card { background:#111; padding:15px; margin-top:10px; border-radius:10px; }
+h2 { margin-top:0; }
+</style>
+</head>
+
+<body>
+
+<h2>Dragonfly.sys</h2>
+<div id="user"></div>
+
+<div class="card">
+  <div id="rank"></div>
+  <div id="xp">0 XP</div>
+  <button class="btn" onclick="handleCollect()">COLLECT</button>
+</div>
+
+<div class="card">
+  <button class="btn" onclick="claimDaily()">CLAIM DAILY +500</button>
+</div>
+
+<div class="card">
+  <button class="btn" onclick="inviteFriend()">INVITE FRIEND</button>
+</div>
+
+<div class="card">
+  <h3>Leaderboard</h3>
+  <div id="leaderboard"></div>
+</div>
+
 <script>
+/* ================= TELEGRAM INIT ================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
 
 /* ================= FIREBASE CONFIG ================= */
-
 const firebaseConfig = {
-  apiKey: "AIzaSyDh9uH5W3Ae_U6KMfqQvcN6YE_mRRWGrAY",
+  apiKey: "AIzaSyDh9uH5W3Ae_U6KMfqQvcN6YE_mRRWHrAY",
   authDomain: "dragonfly-sys.firebaseapp.com",
   databaseURL: "https://dragonfly-sys-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "dragonfly-sys",
   storageBucket: "dragonfly-sys.firebasestorage.app",
   messagingSenderId: "300472838357",
-  appId: "1:300472838357:web:19f9715414a41f37651a5c"
+  appId: "1:300472838357:web:19f9715414a41f97651a5c"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ================= USER ================= */
-
+/* ================= USER DATA ================= */
 const userId = tg.initDataUnsafe.user?.id || "dev_user";
 const userName = tg.initDataUnsafe.user?.first_name || "Knight";
 const startParam = tg.initDataUnsafe.start_param || null;
@@ -28,7 +70,6 @@ let miningXP = 0;
 let lastDaily = "";
 
 /* ================= RANK SYSTEM ================= */
-
 const RANKS = [
   { name:"Sabina", min:0, max:5000 },
   { name:"Sentry", min:5000, max:20000 },
@@ -40,3 +81,130 @@ const RANKS = [
 function getRank(xp){
   return RANKS.find(r => xp >= r.min && xp < r.max) || RANKS[0];
 }
+
+/* ================= LOAD USER ================= */
+function loadUser() {
+
+  db.ref("users/"+userId).once("value", snap => {
+
+    const data = snap.val();
+    const isNewUser = !data;
+
+    if(isNewUser){
+
+      let newUser = {
+        xp:0,
+        last_daily:"",
+        created_at: Date.now(),
+        name:userName
+      };
+
+      db.ref("users/"+userId).set(newUser);
+
+      // Referral
+      if(startParam && startParam.startsWith("ref_")){
+        const referrerId = startParam.replace("ref_","");
+        if(referrerId !== userId){
+
+          newUser.xp += 500;
+
+          db.ref("users/"+userId).update({
+            xp:500,
+            referred_by:referrerId
+          });
+
+          db.ref("users/"+referrerId).once("value", refSnap=>{
+            const refData = refSnap.val();
+            if(refData){
+              const updatedXP = (refData.xp||0) + 2500;
+              db.ref("users/"+referrerId).update({
+                xp:updatedXP,
+                ["referrals/"+userId]:true
+              });
+            }
+          });
+        }
+      }
+
+      totalXP = newUser.xp;
+
+    } else {
+      totalXP = data.xp || 0;
+      lastDaily = data.last_daily || "";
+    }
+
+    updateUI();
+    startMining();
+    loadLeaderboard();
+  });
+}
+
+/* ================= UI ================= */
+function updateUI(){
+  document.getElementById("xp").innerText = Math.floor(totalXP)+" XP";
+  document.getElementById("rank").innerText = "Rank: "+getRank(totalXP).name;
+  document.getElementById("user").innerText = "Player: "+userName;
+}
+
+/* ================= MINING ================= */
+function startMining(){
+  setInterval(()=>{
+    miningXP += (2/60);
+  },1000);
+}
+
+function handleCollect(){
+  if(miningXP < 1) return;
+  totalXP += miningXP;
+  miningXP = 0;
+  saveUser();
+}
+
+/* ================= DAILY ================= */
+function claimDaily(){
+  const today = new Date().toDateString();
+  if(lastDaily === today){
+    tg.showAlert("Already claimed today!");
+    return;
+  }
+  totalXP += 500;
+  lastDaily = today;
+  saveUser();
+}
+
+/* ================= SAVE ================= */
+function saveUser(){
+  db.ref("users/"+userId).update({
+    xp: totalXP,
+    last_daily: lastDaily
+  });
+  updateUI();
+  loadLeaderboard();
+}
+
+/* ================= REFERRAL LINK ================= */
+function inviteFriend(){
+  const botUsername = "Dragonfly_KnightsBot"; // TANPA @
+  const link = `https://t.me/${botUsername}?start=ref_${userId}`;
+  tg.openTelegramLink(
+    `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Join Dragonfly.sys and earn XP!")}`
+  );
+}
+
+/* ================= LEADERBOARD ================= */
+function loadLeaderboard(){
+  db.ref("users").orderByChild("xp").limitToLast(10).once("value", snap=>{
+    let arr=[];
+    snap.forEach(c=>arr.push(c.val()));
+    arr.reverse();
+
+    document.getElementById("leaderboard").innerHTML =
+      arr.map((u,i)=>`#${i+1} ${u.name} - ${Math.floor(u.xp)} XP`).join("<br>");
+  });
+}
+
+loadUser();
+</script>
+
+</body>
+</html>
