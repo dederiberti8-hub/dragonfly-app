@@ -201,18 +201,13 @@
         }
 
         function updateUI() {
-            const balanceElement = document.getElementById('balance');
-            const rankElement = document.getElementById('rank-name');
-            const charImg = document.querySelector('.character-img');
-            const progressBar = document.getElementById('progress-bar');
-            const lvlText = document.getElementById('lvl-txt');
-
-            balanceElement.innerText = Math.floor(balance).toLocaleString();
+            // ... kode lainnya ...
             
             let lvl = Math.floor(balance / 5000) + 1;
             lvlText.innerText = lvl;
 
             let currentRank = "Common: Orthetrum sabina";
+            // Pastikan URL mengarah ke link RAW GitHub kamu
             let imgSource = "https://raw.githubusercontent.com/dederiberti8-hub/dragonfly-app/main/Orthetrum%20sabina.png"; 
 
             if (lvl >= 5 && lvl < 10) {
@@ -225,20 +220,9 @@
                 currentRank = "Legendary: Rhyothemis graphiptera";
                 imgSource = "https://raw.githubusercontent.com/dederiberti8-hub/dragonfly-app/main/Rhyothemis%20graphiptera.png";
             }
-
-            rankElement.innerText = currentRank;
-
-            if (charImg.src !== imgSource && !imgSource.includes("LINK_")) {
-                charImg.style.filter = "brightness(3) contrast(1.5)";
-                setTimeout(() => {
-                    charImg.src = imgSource;
-                    charImg.style.filter = "none";
-                }, 300);
-            }
-
-            progressBar.style.width = ((balance % 5000) / 5000 * 100) + "%";
+            
+            // ... sisa kode ...
         }
-
         function checkClaimStatus() {
             const today = new Date().toDateString();
             const btn = document.getElementById('btn-daily');
