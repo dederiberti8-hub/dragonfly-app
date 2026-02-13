@@ -1,210 +1,341 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dragonfly.sys</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragonfly Knights - Evolution</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        body { 
+            background: #030806; color: #00ffaa; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            text-align: center; margin: 0; padding-bottom: 110px; 
+            overflow-x: hidden;
+        }
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-database-compat.js"></script>
+        /* --- ANIMASI KARAKTER --- */
+        @keyframes floatAnim {
+            0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 5px #00ffaa); }
+            50% { transform: translateY(-15px) scale(1.02); filter: drop-shadow(0 0 20px #00ffaa); }
+        }
 
-<style>
-body { background:#030806; color:white; font-family:sans-serif; margin:0; padding:20px; }
-.btn { background:#00ffaa; border:none; padding:10px; width:100%; margin-top:10px; font-weight:bold; border-radius:6px; }
-.card { background:#111; padding:15px; margin-top:10px; border-radius:10px; }
-h2 { margin-top:0; }
-</style>
+        .character-img {
+            width: 200px; transition: 0.3s;
+            animation: floatAnim 4s infinite ease-in-out;
+            cursor: pointer; -webkit-user-drag: none;
+        }
+
+        .character-img:active { transform: scale(0.9); }
+
+        /* --- STATS HEADER --- */
+        .stats-header { padding: 20px; background: #06110d; border-bottom: 1px solid #012b1d; position: sticky; top: 0; z-index: 100; }
+        #progress-container { width: 90%; background: #012b1d; height: 10px; border-radius: 5px; margin: 10px auto; overflow: hidden; }
+        #progress-bar { height: 100%; background: #00ffaa; width: 0%; transition: 0.5s; box-shadow: 0 0 10px #00ffaa; }
+
+        /* --- PANELS --- */
+        .panel { display: none; padding: 20px; animation: fadeIn 0.3s; max-height: 70vh; overflow-y: auto; }
+        .active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- CARDS & ITEMS --- */
+        .upgrade-card { background: #0a1a14; border: 1px solid #00ffaa; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        .task-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: rgba(0, 255, 170, 0.05); padding: 12px; 
+            border-radius: 10px; margin-bottom: 10px; border: 1px solid #012b1d;
+        }
+
+        /* --- FOOTER NAV --- */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #06110d; display: flex; padding: 12px 0; border-top: 1px solid rgba(0, 255, 170, 0.3); z-index: 1000; }
+        .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; color: #00ffaa !important; opacity: 0.3; transition: 0.3s; }
+        .nav-icon-svg { width: 22px; height: 22px; margin-bottom: 4px; fill: #00ffaa !important; }
+        .nav-btn.active-nav { opacity: 1 !important; font-weight: bold; }
+
+        button.primary { width: 100%; padding: 15px; background: #00ffaa; border: none; border-radius: 10px; font-weight: bold; color: #030806; cursor: pointer; }
+        .btn-small { width: auto; padding: 6px 15px; font-size: 0.75em; margin: 0; }
+        input[type="text"]:disabled { opacity: 0.5; }
+    </style>
 </head>
-
 <body>
 
-<h2>Dragonfly.sys</h2>
-<div id="user"></div>
+    <div class="stats-header">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8em; width: 90%; margin: 0 auto;">
+            <span>RANK: <b id="rank-name">Common: Orthetrum sabina</b></span>
+            <span>LVL: <b id="lvl-txt">1</b></span>
+        </div>
+        <div id="progress-container"><div id="progress-bar"></div></div>
+        <div style="font-size: 1.2em; font-weight: bold;"><span id="balance">0</span> XP</div>
+    </div>
 
-<div class="card">
-  <div id="rank"></div>
-  <div id="xp">0 XP</div>
-  <button class="btn" onclick="handleCollect()">COLLECT</button>
-</div>
+    <div id="home" class="panel active">
+        <div style="height: 250px; margin: 20px auto; display: flex; align-items: center; justify-content: center;">
+            <img src="https://i.ibb.co/XfXvXzY/dragonfly-knight.png" class="character-img" onclick="claimXp()" alt="Dragonfly Knight">
+        </div>
+        <div style="font-size: 0.8em; opacity: 0.8;"><span id="lang-speed">Speed</span>: 2 XP/sec</div>
+        <div id="pool" style="font-size: 2.5em; font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px rgba(0,255,170,0.5);">0</div>
+        <button class="primary" id="btn-claim-mining" onclick="claimXp()">CLAIM MINING</button>
+    </div>
 
-<div class="card">
-  <button class="btn" onclick="claimDaily()">CLAIM DAILY +500</button>
-</div>
+    <div id="tasks" class="panel">
+        <h3 id="lang-tasks-title">Missions</h3>
+        <div class="upgrade-card">
+            <div class="daily-grid" id="daily-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
+                <div class="daily-box" id="day1" style="border:1px solid #012b1d; padding:5px; border-radius:5px; font-size:0.7em;">D1<br>1k</div>
+                <div class="daily-box" id="day2" style="border:1px solid #012b1d; padding:5px; border-radius:5px; font-size:0.7em;">D2<br>2k</div>
+                <div class="daily-box" id="day3" style="border:1px solid #012b1d; padding:5px; border-radius:5px; font-size:0.7em;">D3<br>5k</div>
+                <div class="daily-box" id="day4" style="border:1px solid #012b1d; padding:5px; border-radius:5px; font-size:0.7em;">D4<br>8k</div>
+                <div class="daily-box" id="day5" style="border:1px solid #012b1d; padding:5px; border-radius:5px; font-size:0.7em;">D5<br>12k</div>
+                <div class="daily-box" id="day6" style="border:1px solid #012b1d; padding:5px; border-radius:5px; font-size:0.7em;">D6<br>20k</div>
+                <div class="daily-box" id="day7" style="border:1px solid #012b1d; padding:5px; border-radius:5px; font-size:0.7em;">D7<br>50k</div>
+            </div>
+            <button class="primary" id="btn-daily" onclick="claimDaily()">CLAIM DAILY REWARD</button>
+        </div>
+        <div id="task-list"></div>
+    </div>
 
-<div class="card">
-  <button class="btn" onclick="inviteFriend()">INVITE FRIEND</button>
-</div>
+    <div id="leaderboard" class="panel">
+        <h3 id="lang-leaderboard-title">Top Knights</h3>
+        <div class="upgrade-card" style="padding: 10px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #012b1d; color: #888;">
+                        <th style="padding: 10px 5px; text-align: left;">#</th>
+                        <th style="padding: 10px 5px; text-align: left;">PLAYER</th>
+                        <th style="padding: 10px 5px; text-align: right;">XP</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-list"></tbody>
+            </table>
+        </div>
+    </div>
 
-<div class="card">
-  <h3>Leaderboard</h3>
-  <div id="leaderboard"></div>
-</div>
+    <div id="friends" class="panel">
+        <h3 id="lang-friends-title">Friends</h3>
+        <div class="upgrade-card">
+            <p id="lang-invite-desc">Invite friends & get 5,000 XP!</p>
+            <button class="primary" onclick="inviteFriend()">INVITE NOW</button>
+        </div>
+    </div>
 
-<script>
-/* ================= TELEGRAM INIT ================= */
-const tg = window.Telegram.WebApp;
-tg.expand();
+    <div id="settings" class="panel">
+        <h3 id="lang-settings-title">Settings</h3>
+        <div class="upgrade-card">
+            <p id="lang-select-lang" style="font-weight:bold; margin-top:0;">Select Language</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button class="primary btn-small" onclick="changeLanguage('id')">🇮🇩 ID</button>
+                <button class="primary btn-small" onclick="changeLanguage('en')">🇬🇧 EN</button>
+                <button class="primary btn-small" onclick="changeLanguage('ru')">🇷🇺 RU</button>
+                <button class="primary btn-small" onclick="changeLanguage('in')">🇮🇳 IN</button>
+            </div>
+        </div>
+        <div class="upgrade-card" style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="lang-haptic">Vibration</span>
+            <input type="checkbox" id="haptic-toggle" checked>
+        </div>
+    </div>
 
-/* ================= FIREBASE CONFIG ================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyDh9uH5W3Ae_U6KMfqQvcN6YE_mRRWHrAY",
-  authDomain: "dragonfly-sys.firebaseapp.com",
-  databaseURL: "https://dragonfly-sys-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "dragonfly-sys",
-  storageBucket: "dragonfly-sys.firebasestorage.app",
-  messagingSenderId: "300472838357",
-  appId: "1:300472838357:web:19f9715414a41f97651a5c"
-};
+    <div class="footer">
+        <button class="nav-btn active-nav" onclick="tab('home', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span class="nav-txt">HOME</span></button>
+        <button class="nav-btn" onclick="tab('tasks', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg><span class="nav-txt">TASKS</span></button>
+        <button class="nav-btn" onclick="tab('leaderboard', this); loadLeaderboard();"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 11.63 21 9.55 21 7V6c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg><span class="nav-txt">TOP</span></button>
+        <button class="nav-btn" onclick="tab('friends', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><span class="nav-txt">FRIENDS</span></button>
+        <button class="nav-btn" onclick="tab('settings', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg><span class="nav-txt">SETS</span></button>
+    </div>
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    <script>
+        const SUPABASE_URL = 'https://ohenzevydgcvudhmqfmh.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_sQBX-XD9_fX4Rgudit4tYg_IvC_egUE';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const tg = window.Telegram.WebApp;
+        const user = tg.initDataUnsafe?.user;
 
-/* ================= USER DATA ================= */
-const userId = tg.initDataUnsafe.user?.id || "dev_user";
-const userName = tg.initDataUnsafe.user?.first_name || "Knight";
-const startParam = tg.initDataUnsafe.start_param || null;
+        let balance = 0, pool = 0, speed = 2, currentDay = 1, lastClaim = "", currentLang = 'id';
 
-let totalXP = 0;
-let miningXP = 0;
-let lastDaily = "";
+        const i18n = {
+            id: { home: "BERANDA", tasks: "MISI", friends: "TEMAN", sets: "SETTING", speed: "Kecepatan", claim: "AMBIL", invite: "Ajak teman & dapat 5.000 XP!", haptic: "Getaran", top: "TOP" },
+            en: { home: "HOME", tasks: "TASKS", friends: "FRIENDS", sets: "SETTINGS", speed: "Speed", claim: "CLAIM", invite: "Invite friends & get 5,000 XP!", haptic: "Vibration", top: "TOP" },
+            ru: { home: "ГЛАВНАЯ", tasks: "ЗАДАНИЯ", friends: "ДРУЗЬЯ", sets: "НАСТРОЙКИ", speed: "Скорость", claim: "ЗАБРАТЬ", invite: "Пригласи друзей и получи 5.000 XP!", haptic: "Вибрация", top: "ТОП" },
+            in: { home: "होम", tasks: "कार्य", friends: "मित्र", sets: "सेटिंग्स", speed: "गति", claim: "दावा", invite: "दोस्तों को आमंत्रित करें और 5,000 XP प्राप्त करें!", haptic: "कंपन", top: "टॉप" }
+        };
 
-/* ================= RANK SYSTEM ================= */
-const RANKS = [
-  { name:"Sabina", min:0, max:5000 },
-  { name:"Sentry", min:5000, max:20000 },
-  { name:"Knight", min:20000, max:100000 },
-  { name:"Commander", min:100000, max:500000 },
-  { name:"Dragon Lord", min:500000, max:Infinity }
-];
-
-function getRank(xp){
-  return RANKS.find(r => xp >= r.min && xp < r.max) || RANKS[0];
-}
-
-/* ================= LOAD USER ================= */
-function loadUser() {
-
-  db.ref("users/"+userId).once("value", snap => {
-
-    const data = snap.val();
-    const isNewUser = !data;
-
-    if(isNewUser){
-
-      let newUser = {
-        xp:0,
-        last_daily:"",
-        created_at: Date.now(),
-        name:userName
-      };
-
-      db.ref("users/"+userId).set(newUser);
-
-      // Referral
-      if(startParam && startParam.startsWith("ref_")){
-        const referrerId = startParam.replace("ref_","");
-        if(referrerId !== userId){
-
-          newUser.xp += 500;
-
-          db.ref("users/"+userId).update({
-            xp:500,
-            referred_by:referrerId
-          });
-
-          db.ref("users/"+referrerId).once("value", refSnap=>{
-            const refData = refSnap.val();
-            if(refData){
-              const updatedXP = (refData.xp||0) + 2500;
-              db.ref("users/"+referrerId).update({
-                xp:updatedXP,
-                ["referrals/"+userId]:true
-              });
-            }
-          });
+        async function syncSave() {
+            if(!user) return;
+            await sb.from('players').upsert({ 
+                telegram_id: user.id.toString(), balance, pool, 
+                current_day: currentDay, last_claim: lastClaim 
+            }, { onConflict: 'telegram_id' });
         }
-      }
 
-      totalXP = newUser.xp;
+        async function loadData() {
+            if(!user) return;
+            const { data } = await sb.from('players').select('*').eq('telegram_id', user.id.toString()).single();
+            if(data) {
+                balance = data.balance; pool = data.pool; currentDay = data.current_day || 1; lastClaim = data.last_claim || "";
+                updateUI(); checkClaimStatus();
+            }
+        }
 
-    } else {
-      totalXP = data.xp || 0;
-      lastDaily = data.last_daily || "";
-    }
+        function changeLanguage(lang) {
+            currentLang = lang;
+            const t = i18n[lang] || i18n['en'];
+            
+            // Update Nav Buttons
+            const navs = document.querySelectorAll('.nav-txt');
+            navs[0].innerText = t.home; navs[1].innerText = t.tasks;
+            navs[2].innerText = t.top; navs[3].innerText = t.friends;
+            navs[4].innerText = t.sets;
 
-    updateUI();
-    startMining();
-    loadLeaderboard();
-  });
-}
+            // Update Labels
+            document.getElementById('lang-speed').innerText = t.speed;
+            document.getElementById('btn-claim-mining').innerText = t.claim + " MINING";
+            document.getElementById('lang-tasks-title').innerText = t.tasks;
+            document.getElementById('lang-friends-title').innerText = t.friends;
+            document.getElementById('lang-invite-desc').innerText = t.invite;
+            document.getElementById('lang-settings-title').innerText = t.sets;
+            document.getElementById('lang-haptic').innerText = t.haptic;
+            document.getElementById('lang-select-lang').innerText = lang === 'id' ? "Pilih Bahasa" : "Select Language";
 
-/* ================= UI ================= */
-function updateUI(){
-  document.getElementById("xp").innerText = Math.floor(totalXP)+" XP";
-  document.getElementById("rank").innerText = "Rank: "+getRank(totalXP).name;
-  document.getElementById("user").innerText = "Player: "+userName;
-}
+            tg.showAlert("Language: " + lang.toUpperCase());
+        }
 
-/* ================= MINING ================= */
-function startMining(){
-  setInterval(()=>{
-    miningXP += (2/60);
-  },1000);
-}
+        function updateUI() {
+            const balanceElement = document.getElementById('balance');
+            const rankElement = document.getElementById('rank-name');
+            const charImg = document.querySelector('.character-img');
+            const progressBar = document.getElementById('progress-bar');
+            const lvlText = document.getElementById('lvl-txt');
 
-function handleCollect(){
-  if(miningXP < 1) return;
-  totalXP += miningXP;
-  miningXP = 0;
-  saveUser();
-}
+            balanceElement.innerText = Math.floor(balance).toLocaleString();
+            
+            let lvl = Math.floor(balance / 5000) + 1;
+            lvlText.innerText = lvl;
 
-/* ================= DAILY ================= */
-function claimDaily(){
-  const today = new Date().toDateString();
-  if(lastDaily === today){
-    tg.showAlert("Already claimed today!");
-    return;
-  }
-  totalXP += 500;
-  lastDaily = today;
-  saveUser();
-}
+            let currentRank = "Common: Orthetrum sabina";
+            let imgSource = "Orthetrum sabina.png"; 
 
-/* ================= SAVE ================= */
-function saveUser(){
-  db.ref("users/"+userId).update({
-    xp: totalXP,
-    last_daily: lastDaily
-  });
-  updateUI();
-  loadLeaderboard();
-}
+            if (lvl >= 5 && lvl < 10) {
+                currentRank = "Rare: Orthetrum glaucum";
+                imgSource = "Orthetrum glaucum.png"; 
+            } else if (lvl >= 10 && lvl < 20) {
+                currentRank = "Epic: Neurothemis fluctuans";
+                imgSource = "Neurothemis fluctuans.png";
+            } else if (lvl >= 20) {
+                currentRank = "Legendary: Rhyothemis graphiptera";
+                imgSource = "Rhyothemis graphiptera.png";
+            }
 
-/* ================= REFERRAL LINK ================= */
-function inviteFriend(){
-  const botUsername = "Dragonfly_KnightsBot"; // TANPA @
-  const link = `https://t.me/${botUsername}?start=ref_${userId}`;
-  tg.openTelegramLink(
-    `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Join Dragonfly.sys and earn XP!")}`
-  );
-}
+            rankElement.innerText = currentRank;
 
-/* ================= LEADERBOARD ================= */
-function loadLeaderboard(){
-  db.ref("users").orderByChild("xp").limitToLast(10).once("value", snap=>{
-    let arr=[];
-    snap.forEach(c=>arr.push(c.val()));
-    arr.reverse();
+            if (charImg.src !== imgSource && !imgSource.includes("LINK_")) {
+                charImg.style.filter = "brightness(3) contrast(1.5)";
+                setTimeout(() => {
+                    charImg.src = imgSource;
+                    charImg.style.filter = "none";
+                }, 300);
+            }
 
-    document.getElementById("leaderboard").innerHTML =
-      arr.map((u,i)=>`#${i+1} ${u.name} - ${Math.floor(u.xp)} XP`).join("<br>");
-  });
-}
+            progressBar.style.width = ((balance % 5000) / 5000 * 100) + "%";
+        }
 
-loadUser();
-</script>
+        function checkClaimStatus() {
+            const today = new Date().toDateString();
+            const btn = document.getElementById('btn-daily');
+            for(let i=1; i<=7; i++) {
+                const box = document.getElementById('day'+i);
+                if(!box) continue;
+                box.style.background = (i < currentDay) ? "#012b1d" : "rgba(0, 255, 170, 0.05)";
+                box.style.borderColor = (i === currentDay) ? "#00ffaa" : "#012b1d";
+            }
+            if(lastClaim === today) {
+                btn.disabled = true; btn.innerText = "CLAIMED TODAY"; btn.style.opacity = "0.5";
+            } else {
+                btn.disabled = false; btn.innerText = "CLAIM DAILY REWARD"; btn.style.opacity = "1";
+            }
+        }
 
+        async function claimDaily() {
+            const today = new Date().toDateString();
+            if(lastClaim === today) return;
+            const rewards = [0, 1000, 2000, 5000, 8000, 12000, 20000, 50000];
+            balance += rewards[currentDay];
+            lastClaim = today;
+            currentDay = currentDay >= 7 ? 1 : currentDay + 1;
+            updateUI(); checkClaimStatus(); await syncSave();
+            tg.showAlert("Daily XP Claimed!");
+        }
+
+        function claimXp() {
+            if(pool < 1) return;
+            balance += pool; pool = 0; updateUI(); syncSave();
+            if(document.getElementById('haptic-toggle').checked) tg.HapticFeedback.impactOccurred('medium');
+        }
+
+        function tab(name, el) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(name).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav'));
+            el.classList.add('active-nav');
+        }
+
+        function loadMissions() {
+            const list = document.getElementById('task-list');
+            const tasks = [
+                { t: "Follow X (Twitter)", r: 5000, link: "https://x.com/", placeholder: "@username X" },
+                { t: "Subscribe YouTube", r: 10000, link: "https://youtube.com/", placeholder: "Channel Name" },
+                { t: "Join Telegram", r: 5000, link: "https://t.me/", placeholder: "@username TG" }
+            ];
+            list.innerHTML = "";
+            tasks.forEach((task, index) => {
+                list.innerHTML += `
+                <div class="task-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="text-align:left">
+                            <span style="font-weight:bold;">${task.t}</span><br>
+                            <span style="color:#00ffaa; font-size:0.8em;">+${task.r.toLocaleString()} XP</span>
+                        </div>
+                        <button class="primary btn-small" onclick="tg.openLink('${task.link}')">GO</button>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="input-task-${index}" placeholder="${task.placeholder}" style="flex:1; background:#06110d; border:1px solid #012b1d; color:#00ffaa; padding:8px; border-radius:5px;">
+                        <button class="primary btn-small" id="verify-btn-${index}" onclick="submitTask(${index}, '${task.t}', ${task.r})">VERIFY</button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        async function submitTask(index, taskTitle, reward) {
+            const inputField = document.getElementById(`input-task-${index}`);
+            const btn = document.getElementById(`verify-btn-${index}`);
+            if (inputField.value.trim().length < 3) return tg.showAlert("Invalid Username!");
+
+            btn.disabled = true; btn.innerText = "WAIT...";
+            try {
+                await sb.from('task_submissions').insert([{ telegram_id: user.id.toString(), task_name: taskTitle, proof_username: inputField.value }]);
+                setTimeout(async () => {
+                    balance += reward; updateUI(); await syncSave();
+                    btn.innerText = "DONE"; btn.style.background = "#012b1d";
+                    tg.showAlert("Reward added!");
+                }, 3000);
+            } catch (e) { btn.disabled = false; btn.innerText = "VERIFY"; }
+        }
+
+        async function loadLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
+            const { data } = await sb.from('players').select('telegram_id, balance').order('balance', { ascending: false }).limit(10);
+            if (data) {
+                list.innerHTML = "";
+                data.forEach((p, i) => {
+                    const isMe = p.telegram_id === user?.id?.toString() ? "background:rgba(0,255,170,0.1)" : "";
+                    list.innerHTML += `<tr style="${isMe}"><td style="padding:10px;">${i+1}</td><td style="padding:10px;">Knight_${p.telegram_id.slice(-4)}</td><td style="padding:10px; text-align:right; color:#00ffaa;">${Math.floor(p.balance).toLocaleString()}</td></tr>`;
+                });
+            }
+        }
+
+        setInterval(() => { pool += (speed / 10); document.getElementById('pool').innerText = Math.floor(pool).toLocaleString(); }, 100);
+        window.onload = () => { loadData(); loadMissions(); tg.expand(); };
+    </script>
 </body>
 </html>
