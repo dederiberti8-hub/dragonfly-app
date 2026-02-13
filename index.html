@@ -49,12 +49,12 @@
 
         /* --- FOOTER NAV --- */
         .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #06110d; display: flex; padding: 12px 0; border-top: 1px solid rgba(0, 255, 170, 0.3); z-index: 1000; }
-        .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; color: #00ffaa !important; opacity: 0.3; transition: 0.3s; }
+        .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; color: #00ffaa !important; opacity: 0.3; transition: 0.3s; outline: none; }
         .nav-icon-svg { width: 22px; height: 22px; margin-bottom: 4px; fill: #00ffaa !important; }
         .nav-btn.active-nav { opacity: 1 !important; font-weight: bold; }
 
         button.primary { width: 100%; padding: 15px; background: #00ffaa; border: none; border-radius: 10px; font-weight: bold; color: #030806; cursor: pointer; }
-        .btn-small { width: auto; padding: 6px 15px; font-size: 0.75em; margin: 0; }
+        .btn-small { width: auto; padding: 8px 15px; font-size: 0.8em; margin: 0; }
         input[type="text"]:disabled { opacity: 0.5; }
     </style>
 </head>
@@ -62,7 +62,7 @@
 
     <div class="stats-header">
         <div style="display: flex; justify-content: space-between; font-size: 0.8em; width: 90%; margin: 0 auto;">
-            <span>RANK: <b id="rank-name">Common: Orthetrum sabina</b></span>
+            <span>RANK: <b id="rank-name">Loading...</b></span>
             <span>LVL: <b id="lvl-txt">1</b></span>
         </div>
         <div id="progress-container"><div id="progress-bar"></div></div>
@@ -119,15 +119,30 @@
         </div>
     </div>
 
-    <div class="upgrade-card">
-    <p id="lang-select-lang" style="font-weight:bold; margin-top:0;">Select Language</p>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        <button class="primary btn-small" onclick="changeLanguage('id')">🇮🇩 ID</button>
-        <button class="primary btn-small" onclick="changeLanguage('en')">🇬🇧 EN</button>
-        <button class="primary btn-small" onclick="changeLanguage('ru')">🇷🇺 RU</button>
-        <button class="primary btn-small" onclick="changeLanguage('in')">🇮🇳 IN</button>
+    <div id="settings" class="panel">
+        <h3 id="lang-settings-title">Settings</h3>
+        <div class="upgrade-card">
+            <p id="lang-select-lang" style="font-weight:bold; margin-top:0;">Select Language</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button class="primary btn-small" onclick="changeLanguage('id')" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <img src="https://flagcdn.com/w40/id.png" width="20" alt="ID"> ID
+                </button>
+                <button class="primary btn-small" onclick="changeLanguage('en')" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <img src="https://flagcdn.com/w40/gb.png" width="20" alt="EN"> EN
+                </button>
+                <button class="primary btn-small" onclick="changeLanguage('ru')" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <img src="https://flagcdn.com/w40/ru.png" width="20" alt="RU"> RU
+                </button>
+                <button class="primary btn-small" onclick="changeLanguage('in')" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <img src="https://flagcdn.com/w40/in.png" width="20" alt="IN"> IN
+                </button>
+            </div>
+        </div>
+        <div class="upgrade-card" style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="lang-haptic">Vibration</span>
+            <input type="checkbox" id="haptic-toggle" checked style="width: 20px; height: 20px;">
+        </div>
     </div>
-</div>
 
     <div class="footer">
         <button class="nav-btn active-nav" onclick="tab('home', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span class="nav-txt">HOME</span></button>
@@ -153,27 +168,27 @@
             in: { home: "होम", tasks: "कार्य", friends: "मित्र", sets: "सेटिंग्स", speed: "गति", claim: "दावा", invite: "दोस्तों को आमंत्रित करें और 5,000 XP प्राप्त करें!", haptic: "कंपन", top: "टॉप" }
         };
 
-        // --- AUTENTIKASI ---
         async function initAuth() {
-            // Ini wajib agar database tidak menolak perintah simpan
-            await sb.auth.signInAnonymously();
-            loadData();
+            try {
+                await sb.auth.signInAnonymously();
+                loadData();
+            } catch(e) { console.error("Auth Error"); }
         }
 
         async function syncSave() {
             if(!user) return;
             const { error } = await sb.from('players').upsert({ 
-                telegram_id: user.id.toString(), balance, pool, 
+                telegram_id: user.id.toString(), balance: Math.floor(balance), pool: Math.floor(pool), 
                 current_day: currentDay, last_claim: lastClaim 
             }, { onConflict: 'telegram_id' });
-            if(error) console.log("Gagal simpan:", error.message);
         }
 
         async function loadData() {
             if(!user) return;
-            const { data, error } = await sb.from('players').select('*').eq('telegram_id', user.id.toString()).single();
+            const { data } = await sb.from('players').select('*').eq('telegram_id', user.id.toString()).single();
             if(data) {
-                balance = data.balance; pool = data.pool; currentDay = data.current_day || 1; lastClaim = data.last_claim || "";
+                balance = data.balance || 0; pool = data.pool || 0; 
+                currentDay = data.current_day || 1; lastClaim = data.last_claim || "";
                 updateUI(); checkClaimStatus();
             }
         }
@@ -192,6 +207,7 @@
             document.getElementById('lang-invite-desc').innerText = t.invite;
             document.getElementById('lang-settings-title').innerText = t.sets;
             document.getElementById('lang-haptic').innerText = t.haptic;
+            document.getElementById('lang-select-lang').innerText = (lang === 'id' ? "Pilih Bahasa" : (lang === 'ru' ? "Выберите язык" : "Select Language"));
         }
 
         function updateUI() {
@@ -229,6 +245,7 @@
             const btn = document.getElementById('btn-daily');
             if(lastClaim === today) {
                 btn.disabled = true; btn.innerText = "CLAIMED TODAY";
+                btn.style.opacity = "0.5";
             }
         }
 
@@ -253,12 +270,7 @@
         async function loadMissions() {
             const list = document.getElementById('task-list');
             list.innerHTML = "<p style='opacity:0.5'>Loading Missions...</p>";
-
-            // Ambil data misi yang sudah pernah dikerjakan oleh user ini dari database
-            const { data: doneTasks } = await sb.from('task_submissions')
-                .select('task_name')
-                .eq('telegram_id', user.id.toString());
-
+            const { data: doneTasks } = await sb.from('task_submissions').select('task_name').eq('telegram_id', user.id.toString());
             const completedTasks = doneTasks ? doneTasks.map(d => d.task_name) : [];
 
             const tasks = [
@@ -267,27 +279,16 @@
                 { t: "Join Telegram Channel", r: 5000, link: "https://t.me/", placeholder: "@username" },
                 { t: "Follow Instagram", r: 3000, link: "https://instagram.com/", placeholder: "@username" },
                 { t: "Follow TikTok", r: 3000, link: "https://tiktok.com/", placeholder: "@username" },
-                { t: "Like Facebook Page", r: 2000, link: "https://facebook.com/", placeholder: "Profile Name" },
                 { t: "Join Discord Server", r: 7000, link: "https://discord.gg/", placeholder: "Discord ID" },
                 { t: "Retweet Pinned Post", r: 4000, link: "https://x.com/", placeholder: "@username" },
                 { t: "Watch Promo Video", r: 2500, link: "https://youtube.com/", placeholder: "Done" },
-                { t: "Join Newsletter", r: 2000, link: "https://google.com", placeholder: "Email" },
-                { t: "Post on X about Us", r: 8000, link: "https://x.com/", placeholder: "Link Post" },
-                { t: "Follow Founder on X", r: 3000, link: "https://x.com/", placeholder: "@username" },
-                { t: "Join Partner TG", r: 5000, link: "https://t.me/", placeholder: "@username" },
-                { t: "Review on Playstore", r: 15000, link: "https://play.google.com/", placeholder: "Google Name" },
-                { t: "Add 💎 to TG Name", r: 10000, link: "#", placeholder: "Done" },
-                { t: "Follow Thread Account", r: 3000, link: "https://threads.net/", placeholder: "@username" },
-                { t: "Invite 3 Friends", r: 20000, link: "#friends", placeholder: "Done" },
                 { t: "Daily Check-in Task", r: 1000, link: "#", placeholder: "Done" },
-                { t: "Connect Wallet", r: 25000, link: "#", placeholder: "Address" },
-                { t: "Join Dragonfly Knight Guild", r: 12000, link: "#", placeholder: "@username" }
+                { t: "Connect Wallet", r: 25000, link: "#", placeholder: "Address" }
             ];
 
             list.innerHTML = "";
             tasks.forEach((task, index) => {
                 const isDone = completedTasks.includes(task.t);
-                
                 list.innerHTML += `
                 <div class="task-item" style="flex-direction: column; align-items: stretch; gap: 8px; ${isDone ? 'opacity: 0.5; filter: grayscale(1);' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -298,65 +299,30 @@
                         <button class="primary btn-small" onclick="tg.openLink('${task.link}')" ${isDone ? 'disabled' : ''}>GO</button>
                     </div>
                     <div style="display: flex; gap: 5px;">
-                        <input type="text" id="input-task-${index}" 
-                            value="${isDone ? 'COMPLETED' : ''}" 
-                            placeholder="${task.placeholder}" 
-                            style="flex:1; background:#06110d; border:1px solid #012b1d; color:#00ffaa; padding:8px; border-radius:5px;"
-                            ${isDone ? 'disabled' : ''}>
-                        <button class="primary btn-small" 
-                            id="verify-btn-${index}" 
-                            onclick="submitTask(${index}, '${task.t}', ${task.r})"
-                            style="${isDone ? 'background:#012b1d; color:#888;' : ''}"
-                            ${isDone ? 'disabled' : ''}>
-                            ${isDone ? 'DONE' : 'VERIFY'}
-                        </button>
+                        <input type="text" id="input-task-${index}" value="${isDone ? 'COMPLETED' : ''}" placeholder="${task.placeholder}" style="flex:1; background:#06110d; border:1px solid #012b1d; color:#00ffaa; padding:8px; border-radius:5px;" ${isDone ? 'disabled' : ''}>
+                        <button class="primary btn-small" id="verify-btn-${index}" onclick="submitTask(${index}, '${task.t}', ${task.r})" style="${isDone ? 'background:#012b1d; color:#888;' : ''}" ${isDone ? 'disabled' : ''}>${isDone ? 'DONE' : 'VERIFY'}</button>
                     </div>
                 </div>`;
             });
         }
+
         async function submitTask(index, taskTitle, reward) {
             const inputField = document.getElementById(`input-task-${index}`);
             const btn = document.getElementById(`verify-btn-${index}`);
-            
-            if (inputField.value.trim().length < 3) return tg.showAlert("Isi username dengan benar!");
-
-            btn.disabled = true;
-            btn.innerText = "WAIT...";
-            
+            if (inputField.value.trim().length < 3) return tg.showAlert("Isi dengan benar!");
+            btn.disabled = true; btn.innerText = "WAIT...";
             try {
-                // 1. Catat misi di tabel submissions
-                const { error: subError } = await sb.from('task_submissions').insert([{ 
-                    telegram_id: user.id.toString(), 
-                    task_name: taskTitle, 
-                    proof_username: inputField.value 
-                }]);
-
-                if (subError) throw subError;
-
-                // 2. Tambah XP ke variabel lokal
-                balance = Number(balance) + Number(reward);
-                
-                // 3. PAKSA Update tampilan layar saat ini juga
-                document.getElementById('balance').innerText = Math.floor(balance).toLocaleString();
-                updateUI(); 
-
-                // 4. Simpan saldo terbaru ke database pemain
-                await syncSave();
-
-                // 5. Ubah tampilan tombol
-                btn.innerText = "DONE";
-                btn.style.background = "#012b1d";
-                inputField.disabled = true;
-                inputField.value = "COMPLETED";
+                const { error } = await sb.from('task_submissions').insert([{ telegram_id: user.id.toString(), task_name: taskTitle, proof_username: inputField.value }]);
+                if (error) throw error;
+                balance += reward; updateUI(); await syncSave();
+                btn.innerText = "DONE"; btn.style.background = "#012b1d";
+                inputField.disabled = true; inputField.value = "COMPLETED";
                 btn.closest('.task-item').style.opacity = "0.5";
                 btn.closest('.task-item').style.filter = "grayscale(1)";
-
-                tg.showAlert("Berhasil! +" + reward.toLocaleString() + " XP didapatkan.");
+                tg.showAlert("Success! +" + reward.toLocaleString() + " XP");
             } catch (e) {
-                console.error(e);
-                btn.disabled = false;
-                btn.innerText = "VERIFY";
-                tg.showAlert("Gagal: Misi mungkin sudah pernah diambil atau koneksi lambat.");
+                btn.disabled = false; btn.innerText = "VERIFY";
+                tg.showAlert("Failed or already submitted.");
             }
         }
 
@@ -367,12 +333,17 @@
             if (data) {
                 list.innerHTML = "";
                 data.forEach((p, i) => {
-                    list.innerHTML += `<tr><td>${i+1}</td><td>Knight_${p.telegram_id.slice(-4)}</td><td style="text-align:right">${Math.floor(p.balance)}</td></tr>`;
+                    list.innerHTML += `<tr><td>${i+1}</td><td>Knight_${p.telegram_id.slice(-4)}</td><td style="text-align:right">${Math.floor(p.balance).toLocaleString()}</td></tr>`;
                 });
             }
         }
 
-        setInterval(() => { pool += (speed / 10); document.getElementById('pool').innerText = Math.floor(pool); }, 100);
+        // Jalankan Mining setiap 100ms
+        setInterval(() => { 
+            pool += (speed / 10); 
+            document.getElementById('pool').innerText = Math.floor(pool); 
+        }, 100);
+
         window.onload = () => { initAuth(); tg.expand(); };
     </script>
 </body>
