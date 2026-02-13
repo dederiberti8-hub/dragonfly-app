@@ -119,22 +119,15 @@
         </div>
     </div>
 
-    <div id="settings" class="panel">
-        <h3 id="lang-settings-title">Settings</h3>
-        <div class="upgrade-card">
-            <p id="lang-select-lang" style="font-weight:bold; margin-top:0;">Select Language</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <button class="primary btn-small" onclick="changeLanguage('id')">🇮🇩 ID</button>
-                <button class="primary btn-small" onclick="changeLanguage('en')">🇬🇧 EN</button>
-                <button class="primary btn-small" onclick="changeLanguage('ru')">🇷🇺 RU</button>
-                <button class="primary btn-small" onclick="changeLanguage('in')">🇮🇳 IN</button>
-            </div>
-        </div>
-        <div class="upgrade-card" style="display: flex; justify-content: space-between; align-items: center;">
-            <span id="lang-haptic">Vibration</span>
-            <input type="checkbox" id="haptic-toggle" checked>
-        </div>
+    <div class="upgrade-card">
+    <p id="lang-select-lang" style="font-weight:bold; margin-top:0;">Select Language</p>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button class="primary btn-small" onclick="changeLanguage('id')">🇮🇩 ID</button>
+        <button class="primary btn-small" onclick="changeLanguage('en')">🇬🇧 EN</button>
+        <button class="primary btn-small" onclick="changeLanguage('ru')">🇷🇺 RU</button>
+        <button class="primary btn-small" onclick="changeLanguage('in')">🇮🇳 IN</button>
     </div>
+</div>
 
     <div class="footer">
         <button class="nav-btn active-nav" onclick="tab('home', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span class="nav-txt">HOME</span></button>
