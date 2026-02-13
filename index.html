@@ -138,7 +138,7 @@
 
     <div class="footer">
         <button class="nav-btn active-nav" onclick="tab('home', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span class="nav-txt">HOME</span></button>
-        <button class="nav-btn" onclick="tab('tasks', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg><span class="nav-txt">TASKS</span></button>
+        <button class="nav-btn" onclick="tab('tasks', this); loadMissions();"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg><span class="nav-txt">TASKS</span></button>
         <button class="nav-btn" onclick="tab('leaderboard', this); loadLeaderboard();"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 11.63 21 9.55 21 7V6c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg><span class="nav-txt">TOP</span></button>
         <button class="nav-btn" onclick="tab('friends', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><span class="nav-txt">FRIENDS</span></button>
         <button class="nav-btn" onclick="tab('settings', this)"><svg class="nav-icon-svg" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg><span class="nav-txt">SETS</span></button>
@@ -160,17 +160,25 @@
             in: { home: "होम", tasks: "कार्य", friends: "मित्र", sets: "सेटिंग्स", speed: "गति", claim: "दावा", invite: "दोस्तों को आमंत्रित करें और 5,000 XP प्राप्त करें!", haptic: "कंपन", top: "टॉप" }
         };
 
+        // --- AUTENTIKASI ---
+        async function initAuth() {
+            // Ini wajib agar database tidak menolak perintah simpan
+            await sb.auth.signInAnonymously();
+            loadData();
+        }
+
         async function syncSave() {
             if(!user) return;
-            await sb.from('players').upsert({ 
+            const { error } = await sb.from('players').upsert({ 
                 telegram_id: user.id.toString(), balance, pool, 
                 current_day: currentDay, last_claim: lastClaim 
             }, { onConflict: 'telegram_id' });
+            if(error) console.log("Gagal simpan:", error.message);
         }
 
         async function loadData() {
             if(!user) return;
-            const { data } = await sb.from('players').select('*').eq('telegram_id', user.id.toString()).single();
+            const { data, error } = await sb.from('players').select('*').eq('telegram_id', user.id.toString()).single();
             if(data) {
                 balance = data.balance; pool = data.pool; currentDay = data.current_day || 1; lastClaim = data.last_claim || "";
                 updateUI(); checkClaimStatus();
@@ -180,14 +188,10 @@
         function changeLanguage(lang) {
             currentLang = lang;
             const t = i18n[lang] || i18n['en'];
-            
-            // Update Nav Buttons
             const navs = document.querySelectorAll('.nav-txt');
             navs[0].innerText = t.home; navs[1].innerText = t.tasks;
             navs[2].innerText = t.top; navs[3].innerText = t.friends;
             navs[4].innerText = t.sets;
-
-            // Update Labels
             document.getElementById('lang-speed').innerText = t.speed;
             document.getElementById('btn-claim-mining').innerText = t.claim + " MINING";
             document.getElementById('lang-tasks-title').innerText = t.tasks;
@@ -195,47 +199,43 @@
             document.getElementById('lang-invite-desc').innerText = t.invite;
             document.getElementById('lang-settings-title').innerText = t.sets;
             document.getElementById('lang-haptic').innerText = t.haptic;
-            document.getElementById('lang-select-lang').innerText = lang === 'id' ? "Pilih Bahasa" : "Select Language";
-
-            tg.showAlert("Language: " + lang.toUpperCase());
         }
 
         function updateUI() {
-            // ... kode lainnya ...
-            
+            document.getElementById('balance').innerText = Math.floor(balance).toLocaleString();
             let lvl = Math.floor(balance / 5000) + 1;
-            lvlText.innerText = lvl;
+            document.getElementById('lvl-txt').innerText = lvl;
+            let progress = ((balance % 5000) / 5000) * 100;
+            document.getElementById('progress-bar').style.width = progress + "%";
 
-            let currentRank = "Common: Orthetrum sabina";
-            // Pastikan URL mengarah ke link RAW GitHub kamu
+            let rankName = "Common: Orthetrum sabina";
             let imgSource = "https://raw.githubusercontent.com/dederiberti8-hub/dragonfly-app/main/Orthetrum%20sabina.png"; 
 
             if (lvl >= 5 && lvl < 10) {
-                currentRank = "Rare: Orthetrum glaucum";
+                rankName = "Rare: Orthetrum glaucum";
                 imgSource = "https://raw.githubusercontent.com/dederiberti8-hub/dragonfly-app/main/Orthetrum%20glaucum.png"; 
             } else if (lvl >= 10 && lvl < 20) {
-                currentRank = "Epic: Neurothemis fluctuans";
+                rankName = "Epic: Neurothemis fluctuans";
                 imgSource = "https://raw.githubusercontent.com/dederiberti8-hub/dragonfly-app/main/Neurothemis%20fluctuans.png";
             } else if (lvl >= 20) {
-                currentRank = "Legendary: Rhyothemis graphiptera";
+                rankName = "Legendary: Rhyothemis graphiptera";
                 imgSource = "https://raw.githubusercontent.com/dederiberti8-hub/dragonfly-app/main/Rhyothemis%20graphiptera.png";
             }
-            
-            // ... sisa kode ...
+            document.getElementById('rank-name').innerText = rankName;
+            document.getElementById('character-sprite').src = imgSource;
         }
+
+        function claimXp() {
+            if(pool < 1) return;
+            balance += pool; pool = 0; updateUI(); syncSave();
+            if(document.getElementById('haptic-toggle').checked) tg.HapticFeedback.impactOccurred('medium');
+        }
+
         function checkClaimStatus() {
             const today = new Date().toDateString();
             const btn = document.getElementById('btn-daily');
-            for(let i=1; i<=7; i++) {
-                const box = document.getElementById('day'+i);
-                if(!box) continue;
-                box.style.background = (i < currentDay) ? "#012b1d" : "rgba(0, 255, 170, 0.05)";
-                box.style.borderColor = (i === currentDay) ? "#00ffaa" : "#012b1d";
-            }
             if(lastClaim === today) {
-                btn.disabled = true; btn.innerText = "CLAIMED TODAY"; btn.style.opacity = "0.5";
-            } else {
-                btn.disabled = false; btn.innerText = "CLAIM DAILY REWARD"; btn.style.opacity = "1";
+                btn.disabled = true; btn.innerText = "CLAIMED TODAY";
             }
         }
 
@@ -250,12 +250,6 @@
             tg.showAlert("Daily XP Claimed!");
         }
 
-        function claimXp() {
-            if(pool < 1) return;
-            balance += pool; pool = 0; updateUI(); syncSave();
-            if(document.getElementById('haptic-toggle').checked) tg.HapticFeedback.impactOccurred('medium');
-        }
-
         function tab(name, el) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.getElementById(name).classList.add('active');
@@ -263,63 +257,136 @@
             el.classList.add('active-nav');
         }
 
-        function loadMissions() {
+        async function loadMissions() {
             const list = document.getElementById('task-list');
+            list.innerHTML = "<p style='opacity:0.5'>Loading Missions...</p>";
+
+            // Ambil data misi yang sudah pernah dikerjakan oleh user ini dari database
+            const { data: doneTasks } = await sb.from('task_submissions')
+                .select('task_name')
+                .eq('telegram_id', user.id.toString());
+
+            const completedTasks = doneTasks ? doneTasks.map(d => d.task_name) : [];
+
             const tasks = [
-                { t: "Follow X (Twitter)", r: 5000, link: "https://x.com/", placeholder: "@username X" },
+                { t: "Follow X (Twitter)", r: 5000, link: "https://x.com/", placeholder: "@username" },
                 { t: "Subscribe YouTube", r: 10000, link: "https://youtube.com/", placeholder: "Channel Name" },
-                { t: "Join Telegram", r: 5000, link: "https://t.me/", placeholder: "@username TG" }
+                { t: "Join Telegram Channel", r: 5000, link: "https://t.me/", placeholder: "@username" },
+                { t: "Follow Instagram", r: 3000, link: "https://instagram.com/", placeholder: "@username" },
+                { t: "Follow TikTok", r: 3000, link: "https://tiktok.com/", placeholder: "@username" },
+                { t: "Like Facebook Page", r: 2000, link: "https://facebook.com/", placeholder: "Profile Name" },
+                { t: "Join Discord Server", r: 7000, link: "https://discord.gg/", placeholder: "Discord ID" },
+                { t: "Retweet Pinned Post", r: 4000, link: "https://x.com/", placeholder: "@username" },
+                { t: "Watch Promo Video", r: 2500, link: "https://youtube.com/", placeholder: "Done" },
+                { t: "Join Newsletter", r: 2000, link: "https://google.com", placeholder: "Email" },
+                { t: "Post on X about Us", r: 8000, link: "https://x.com/", placeholder: "Link Post" },
+                { t: "Follow Founder on X", r: 3000, link: "https://x.com/", placeholder: "@username" },
+                { t: "Join Partner TG", r: 5000, link: "https://t.me/", placeholder: "@username" },
+                { t: "Review on Playstore", r: 15000, link: "https://play.google.com/", placeholder: "Google Name" },
+                { t: "Add 💎 to TG Name", r: 10000, link: "#", placeholder: "Done" },
+                { t: "Follow Thread Account", r: 3000, link: "https://threads.net/", placeholder: "@username" },
+                { t: "Invite 3 Friends", r: 20000, link: "#friends", placeholder: "Done" },
+                { t: "Daily Check-in Task", r: 1000, link: "#", placeholder: "Done" },
+                { t: "Connect Wallet", r: 25000, link: "#", placeholder: "Address" },
+                { t: "Join Dragonfly Knight Guild", r: 12000, link: "#", placeholder: "@username" }
             ];
+
             list.innerHTML = "";
             tasks.forEach((task, index) => {
+                const isDone = completedTasks.includes(task.t);
+                
                 list.innerHTML += `
-                <div class="task-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                <div class="task-item" style="flex-direction: column; align-items: stretch; gap: 8px; ${isDone ? 'opacity: 0.5; filter: grayscale(1);' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="text-align:left">
                             <span style="font-weight:bold;">${task.t}</span><br>
                             <span style="color:#00ffaa; font-size:0.8em;">+${task.r.toLocaleString()} XP</span>
                         </div>
-                        <button class="primary btn-small" onclick="tg.openLink('${task.link}')">GO</button>
+                        <button class="primary btn-small" onclick="tg.openLink('${task.link}')" ${isDone ? 'disabled' : ''}>GO</button>
                     </div>
                     <div style="display: flex; gap: 5px;">
-                        <input type="text" id="input-task-${index}" placeholder="${task.placeholder}" style="flex:1; background:#06110d; border:1px solid #012b1d; color:#00ffaa; padding:8px; border-radius:5px;">
-                        <button class="primary btn-small" id="verify-btn-${index}" onclick="submitTask(${index}, '${task.t}', ${task.r})">VERIFY</button>
+                        <input type="text" id="input-task-${index}" 
+                            value="${isDone ? 'COMPLETED' : ''}" 
+                            placeholder="${task.placeholder}" 
+                            style="flex:1; background:#06110d; border:1px solid #012b1d; color:#00ffaa; padding:8px; border-radius:5px;"
+                            ${isDone ? 'disabled' : ''}>
+                        <button class="primary btn-small" 
+                            id="verify-btn-${index}" 
+                            onclick="submitTask(${index}, '${task.t}', ${task.r})"
+                            style="${isDone ? 'background:#012b1d; color:#888;' : ''}"
+                            ${isDone ? 'disabled' : ''}>
+                            ${isDone ? 'DONE' : 'VERIFY'}
+                        </button>
                     </div>
                 </div>`;
             });
         }
-
         async function submitTask(index, taskTitle, reward) {
             const inputField = document.getElementById(`input-task-${index}`);
             const btn = document.getElementById(`verify-btn-${index}`);
-            if (inputField.value.trim().length < 3) return tg.showAlert("Invalid Username!");
+            
+            // Validasi input minimal 3 karakter
+            if (inputField.value.trim().length < 3) {
+                return tg.showAlert("Invalid Username/Proof!");
+            }
 
-            btn.disabled = true; btn.innerText = "WAIT...";
+            btn.disabled = true;
+            btn.innerText = "WAIT...";
+            
             try {
-                await sb.from('task_submissions').insert([{ telegram_id: user.id.toString(), task_name: taskTitle, proof_username: inputField.value }]);
-                setTimeout(async () => {
-                    balance += reward; updateUI(); await syncSave();
-                    btn.innerText = "DONE"; btn.style.background = "#012b1d";
-                    tg.showAlert("Reward added!");
-                }, 3000);
-            } catch (e) { btn.disabled = false; btn.innerText = "VERIFY"; }
+                // 1. Simpan bukti tugas ke tabel 'task_submissions'
+                const { error } = await sb.from('task_submissions').insert([{ 
+                    telegram_id: user.id.toString(), 
+                    task_name: taskTitle, 
+                    proof_username: inputField.value 
+                }]);
+
+                // Jika error (misal: user mencoba submit ulang misi yang sama)
+                if (error) throw error;
+
+                // 2. Tambahkan XP ke balance pemain
+                balance += reward;
+                
+                // 3. Update tampilan angka di layar
+                updateUI();
+                
+                // 4. Simpan perubahan balance ke tabel 'players'
+                await syncSave();
+
+                // 5. Ubah tampilan item misi menjadi 'Selesai' (Abu-abu)
+                btn.innerText = "DONE";
+                btn.style.background = "#012b1d";
+                inputField.disabled = true;
+                inputField.value = "COMPLETED";
+                
+                const taskCard = btn.closest('.task-item');
+                taskCard.style.opacity = "0.5";
+                taskCard.style.filter = "grayscale(1)";
+
+                tg.showAlert("Success! +" + reward.toLocaleString() + " XP added.");
+
+            } catch (e) {
+                console.error("Task Error:", e);
+                btn.disabled = false;
+                btn.innerText = "VERIFY";
+                tg.showAlert("Failed: You might have already done this or connection lost.");
+            }
         }
 
         async function loadLeaderboard() {
             const list = document.getElementById('leaderboard-list');
-            list.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
+            list.innerHTML = "Loading...";
             const { data } = await sb.from('players').select('telegram_id, balance').order('balance', { ascending: false }).limit(10);
             if (data) {
                 list.innerHTML = "";
                 data.forEach((p, i) => {
-                    const isMe = p.telegram_id === user?.id?.toString() ? "background:rgba(0,255,170,0.1)" : "";
-                    list.innerHTML += `<tr style="${isMe}"><td style="padding:10px;">${i+1}</td><td style="padding:10px;">Knight_${p.telegram_id.slice(-4)}</td><td style="padding:10px; text-align:right; color:#00ffaa;">${Math.floor(p.balance).toLocaleString()}</td></tr>`;
+                    list.innerHTML += `<tr><td>${i+1}</td><td>Knight_${p.telegram_id.slice(-4)}</td><td style="text-align:right">${Math.floor(p.balance)}</td></tr>`;
                 });
             }
         }
 
-        setInterval(() => { pool += (speed / 10); document.getElementById('pool').innerText = Math.floor(pool).toLocaleString(); }, 100);
-        window.onload = () => { loadData(); loadMissions(); tg.expand(); };
+        setInterval(() => { pool += (speed / 10); document.getElementById('pool').innerText = Math.floor(pool); }, 100);
+        window.onload = () => { initAuth(); tg.expand(); };
     </script>
 </body>
 </html>
