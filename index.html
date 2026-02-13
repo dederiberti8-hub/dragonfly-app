@@ -325,51 +325,45 @@
             const inputField = document.getElementById(`input-task-${index}`);
             const btn = document.getElementById(`verify-btn-${index}`);
             
-            // Validasi input minimal 3 karakter
-            if (inputField.value.trim().length < 3) {
-                return tg.showAlert("Invalid Username/Proof!");
-            }
+            if (inputField.value.trim().length < 3) return tg.showAlert("Isi username dengan benar!");
 
             btn.disabled = true;
             btn.innerText = "WAIT...";
             
             try {
-                // 1. Simpan bukti tugas ke tabel 'task_submissions'
-                const { error } = await sb.from('task_submissions').insert([{ 
+                // 1. Catat misi di tabel submissions
+                const { error: subError } = await sb.from('task_submissions').insert([{ 
                     telegram_id: user.id.toString(), 
                     task_name: taskTitle, 
                     proof_username: inputField.value 
                 }]);
 
-                // Jika error (misal: user mencoba submit ulang misi yang sama)
-                if (error) throw error;
+                if (subError) throw subError;
 
-                // 2. Tambahkan XP ke balance pemain
-                balance += reward;
+                // 2. Tambah XP ke variabel lokal
+                balance = Number(balance) + Number(reward);
                 
-                // 3. Update tampilan angka di layar
-                updateUI();
-                
-                // 4. Simpan perubahan balance ke tabel 'players'
+                // 3. PAKSA Update tampilan layar saat ini juga
+                document.getElementById('balance').innerText = Math.floor(balance).toLocaleString();
+                updateUI(); 
+
+                // 4. Simpan saldo terbaru ke database pemain
                 await syncSave();
 
-                // 5. Ubah tampilan item misi menjadi 'Selesai' (Abu-abu)
+                // 5. Ubah tampilan tombol
                 btn.innerText = "DONE";
                 btn.style.background = "#012b1d";
                 inputField.disabled = true;
                 inputField.value = "COMPLETED";
-                
-                const taskCard = btn.closest('.task-item');
-                taskCard.style.opacity = "0.5";
-                taskCard.style.filter = "grayscale(1)";
+                btn.closest('.task-item').style.opacity = "0.5";
+                btn.closest('.task-item').style.filter = "grayscale(1)";
 
-                tg.showAlert("Success! +" + reward.toLocaleString() + " XP added.");
-
+                tg.showAlert("Berhasil! +" + reward.toLocaleString() + " XP didapatkan.");
             } catch (e) {
-                console.error("Task Error:", e);
+                console.error(e);
                 btn.disabled = false;
                 btn.innerText = "VERIFY";
-                tg.showAlert("Failed: You might have already done this or connection lost.");
+                tg.showAlert("Gagal: Misi mungkin sudah pernah diambil atau koneksi lambat.");
             }
         }
 
